@@ -159,3 +159,196 @@ If `fade` is omitted from `set_zone`, the device uses its stored Zone default; i
 ## Advanced WLED Effects
 
 This section will define how LumenCache commands control WLED features beyond the common `on`, `bri`, `rgb`, `cct`, and `fade` fields.
+
+### `seg`: segment
+
+A WLED segment is a logical region of LEDs inside one WLED controller. A segment has its own pixel range and state, including power, brightness, colours, CCT, effect, speed, intensity, and palette.
+
+For example, this addresses segment `0`:
+
+```json
+{
+  "seg": {
+    "id": 0,
+    "on": true,
+    "bri": 128
+  }
+}
+```
+
+The `seg` field can contain:
+
+- One object with `id`: update that segment.
+- One object without `id`: update all active, selected segments.
+- An array of objects: update multiple segments.
+
+A segment is not necessarily a physical LED output. WLED creates segments over its logical LED space, and a segment can represent all or part of a strip.
+
+A WLED segment is also not the same as an LC Zone. A segment exists only inside one WLED controller; an LC Zone can contain multiple devices. The SIB-EP-WLED translation layer decides which local segment or segments correspond to the received LC command.
+
+### `col`: segment colour slots
+
+`col` belongs inside a segment object. It is an array containing up to three colour slots:
+
+1. Primary colour.
+2. Secondary/background colour.
+3. Tertiary/custom colour.
+
+Each colour may be written as an RGB or RGBW channel array:
+
+```json
+{
+  "seg": {
+    "id": 0,
+    "col": [
+      [255, 0, 0],
+      [0, 0, 0],
+      [0, 0, 255]
+    ]
+  }
+}
+```
+
+In this example, the primary colour is red, the secondary colour is black, and the third colour is blue. Which slots are visibly used depends on the selected effect.
+
+The nested brackets have different meanings:
+
+```text
+"col": [ [R, G, B], [R, G, B], [R, G, B] ]
+         └ colour 0   └ colour 1   └ colour 2
+```
+
+An optional fourth channel represents white: `[R,G,B,W]`.
+
+The basic LC `rgb` field supplies only one RGB value, so its normal mapping updates colour slot `0`, the WLED primary colour.
+
+---
+
+### `fx`: effect
+
+`fx` selects the effect algorithm used by a WLED segment:
+
+```json
+{
+  "seg": {
+    "id": 0,
+    "fx": 8
+  }
+}
+```
+
+In this example, segment `0` changes to effect ID `8`. The effect then uses the segment's colours and other effect settings to generate its animation.
+
+`fx:0` is the static/solid effect. Other IDs select animated effects such as blink, breathe, wipe, or rainbow.
+
+The valid IDs depend on the WLED firmware build. This WLED source currently defines `MODE_COUNT` as `220`, giving built-in slots `0–219`; usermods or a different WLED version can change the available list. The receiver must validate an effect ID against its own effect count before applying it.
+
+If `fx` is omitted, the segment keeps its current effect.
+
+LumenCache currently has no `fx` field or `fqm_ji_fx` parameter. Supporting this feature over FQM requires a new protocol field or an agreed WLED command container; that wire format is not yet defined here.
+
+### `sx` and `ix`: effect controls
+
+`sx` and `ix` adjust the current effect on one WLED segment:
+
+- `sx`: effect speed.
+- `ix`: effect intensity.
+
+Both are integer values from `0` to `255`:
+
+```json
+{
+  "seg": {
+    "id": 0,
+    "fx": 8,
+    "sx": 160,
+    "ix": 200
+  }
+}
+```
+
+Their exact visual meaning depends on the selected effect. A higher `sx` commonly makes an animation faster, while `ix` may control strength, density, size, or another effect-specific parameter. Some effects may ignore one or both values.
+
+The WLED default for both values is `128`. If `sx` or `ix` is omitted, the segment keeps its current value.
+
+Selecting a new `fx` through the normal JSON API does not necessarily reset `sx` and `ix`. Sending all three fields together gives an explicit, repeatable result.
+
+LumenCache currently has no `sx`, `ix`, speed, or intensity FQM parameters for WLED effects. Their FQM representation is not yet defined here.
+
+### `pal`: palette
+
+`pal` selects the colour palette used by an effect on one WLED segment:
+
+```json
+{
+  "seg": {
+    "id": 0,
+    "fx": 8,
+    "pal": 6
+  }
+}
+```
+
+A palette supplies a sequence of colours that an effect can use. It is different from `col`: `col` contains up to three explicit segment colours, while `pal` selects a larger predefined or custom colour set.
+
+`pal` is an integer ID. The available IDs depend on the WLED build and may include built-in, custom, and usermod palettes. The receiver must validate the ID against its own palette list.
+
+Palette selection is ignored for segments without RGB capability. If `pal` is omitted, the segment keeps its current palette.
+
+LumenCache currently has no `pal` or palette FQM parameter. Its FQM representation is not yet defined here.
+
+### `c1`, `c2`, `c3`, `o1`, `o2`, and `o3`: effect-specific controls
+
+Some WLED effects expose additional controls whose meanings are defined by that effect:
+
+- `c1` and `c2`: integer sliders from `0` to `255`.
+- `c3`: integer slider from `0` to `31`.
+- `o1`, `o2`, and `o3`: Boolean options.
+
+Example:
+
+```json
+{
+  "seg": {
+    "id": 0,
+    "fx": 8,
+    "c1": 120,
+    "o1": true
+  }
+}
+```
+
+These keys have no universal visual meaning. One effect may use `c1` for size while another uses it for spacing, and many effects ignore controls they do not define. A client must know the selected effect's metadata before presenting or setting them.
+
+LumenCache currently has no equivalent FQM parameters. Because their meaning changes with `fx`, they are less suitable for the first small WLED protocol subset than `fx`, `sx`, `ix`, and `pal`.
+
+### `rev`, `mi`, and `frz`: simple segment options
+
+WLED also provides simple Boolean options on each segment:
+
+- `rev`: reverse the segment's direction.
+- `mi`: mirror the segment.
+- `frz`: freeze or resume the segment's animation.
+
+```json
+{
+  "seg": {
+    "id": 0,
+    "rev": true,
+    "mi": false,
+    "frz": false
+  }
+}
+```
+
+These options are local WLED segment behavior and currently have no LC FQM equivalents.
+
+### Complexity boundary
+
+The functions covered so far are direct updates to small scalar fields on an existing segment. The next groups are materially more complex:
+
+- Presets recall a complete stored WLED state.
+- Segment geometry creates, resizes, or deletes logical LED regions.
+- Individual-pixel data can carry a variable-length colour stream.
+
+These require different protocol and storage decisions, so they are not included in the simple effect-control group above.
