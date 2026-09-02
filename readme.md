@@ -15,3 +15,10 @@ On Linux, the native USB CDC port commonly appears as `/dev/ttyACM*`, while an e
 WLED does not currently provide a web UI setting to select another UART. To use hardware UART RX/TX pins for serial control, WLED must be custom-built to use `Serial1`, or USB CDC must be disabled during compilation.
 
 References: [WLED Serial documentation](https://kno.wled.ge/interfaces/serial/) and [WLED ESP32-S3 UART discussion](https://wled.discourse.group/t/uart-over-serial/15377).
+
+## Env
+
+Wled is built using **PlatformIO** / **Adruino**, it does not supports **ESP-IDF** framework.
+
+## Modifications
+

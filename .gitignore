@@ -6,7 +6,8 @@
 .pio
 .pioenvs
 .piolibdeps
-.vscode
+/.vscode/
+.clangd
 compile_commands.json
 __pycache__/
 
@@ -31,3 +32,4 @@ wled-update.sh
 /wled00/wled00.ino.cpp
 /wled00/html_*.h
 /wled00/js_*.h
+
