@@ -352,3 +352,19 @@ The functions covered so far are direct updates to small scalar fields on an exi
 - Individual-pixel data can carry a variable-length colour stream.
 
 These require different protocol and storage decisions, so they are not included in the simple effect-control group above.
+
+## Build and Smoke-Test Status
+
+On 2026-09-03, the first `A_Lumencache` scaffold was successfully built, flashed, booted, and connected to Wi-Fi.
+
+| Item | Verified value |
+|---|---|
+| PlatformIO environment | `lumencache_s3` |
+| WLED version | `17.0.0-devV5` |
+| Release configuration | `ESP32-S3_8MB_opi` |
+| Architecture / core | ESP32-S3 / `5.5.4.260407` |
+| WLED catalogue | 220 effects, 72 palettes |
+| Verification endpoint | `/json/info` |
+| Usermod result | `"u":{"Lumencache":["loaded"]}` |
+
+This confirms that the usermod was compiled, registered, and initialized. The device reports 16 MB physical Flash and approximately 8 MB PSRAM, while the current build uses the 8 MB Flash configuration; a 16 MB OPI build should be considered for the final hardware profile.
